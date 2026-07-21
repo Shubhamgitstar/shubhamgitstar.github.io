@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shubham Tripathi — Threat Hunting &amp; Responsible Disclosure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B1220;
+    --panel:#121B2E;
+    --panel-edge:#22304a;
+    --paper:#E8E6DD;
+    --paper-dim:#c9c6b8;
+    --redact:#0A0A0A;
+    --stamp:#C08A2E;
+    --alert:#B0463C;
+    --steel:#7FA6C2;
+    --text-hi:#EDEBE1;
+    --text-mid:#9AA6B8;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --disp: 'Space Grotesk', sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--ink);
+    color:var(--text-hi);
+    font-family:var(--sans);
+    line-height:1.55;
+    overflow-x:hidden;
+  }
+  a{color:var(--steel); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  ::selection{background:var(--stamp); color:#0B1220;}
+
+  .wrap{max-width:1040px; margin:0 auto; padding:0 28px;}
+
+  /* faint document texture */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  /* ===== HEADER / COVER SHEET ===== */
+  header.cover{
+    position:relative;
+    padding:56px 0 64px;
+    border-bottom:1px solid var(--panel-edge);
+  }
+  .case-meta{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    font-family:var(--mono); font-size:12px; color:var(--text-mid);
+    letter-spacing:0.04em;
+    margin-bottom:40px;
+    flex-wrap:wrap; gap:10px;
+  }
+  .case-meta span{display:block;}
+  .stamp-box{
+    border:2px solid var(--stamp);
+    color:var(--stamp);
+    font-family:var(--mono);
+    font-weight:600;
+    font-size:11px;
+    letter-spacing:0.18em;
+    padding:6px 10px;
+    transform:rotate(-3deg);
+    display:inline-block;
+    opacity:0.9;
+  }
+  h1.name{
+    font-family:var(--disp);
+    font-weight:700;
+    font-size:clamp(2.4rem, 6vw, 4rem);
+    letter-spacing:-0.02em;
+    color:var(--text-hi);
+    margin-bottom:10px;
+  }
+  .role-line{
+    font-family:var(--mono);
+    font-size:15px;
+    color:var(--steel);
+    margin-bottom:26px;
+  }
+  .role-line .sep{color:var(--text-mid); margin:0 10px;}
+  .summary{
+    max-width:620px;
+    color:var(--text-mid);
+    font-size:15.5px;
+  }
+  .summary strong{color:var(--text-hi); font-weight:600;}
+
+  /* ===== STATS STRIP ===== */
+  section.stats{
+    border-bottom:1px solid var(--panel-edge);
+  }
+  .stats-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:1px;
+    background:var(--panel-edge);
+  }
+  .stat{
+    background:var(--ink);
+    padding:28px 22px;
+  }
+  .stat .num{
+    font-family:var(--disp);
+    font-weight:700;
+    font-size:2.1rem;
+    color:var(--text-hi);
+  }
+  .stat .label{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--text-mid);
+    letter-spacing:0.05em;
+    margin-top:4px;
+    text-transform:uppercase;
+  }
+
+  /* ===== SECTION HEADINGS ===== */
+  .section{padding:72px 0;}
+  .section-head{
+    display:flex; align-items:baseline; gap:14px;
+    margin-bottom:34px;
+  }
+  .section-head .tag{
+    font-family:var(--mono); font-size:11px; color:var(--stamp);
+    letter-spacing:0.15em; border:1px solid var(--stamp);
+    padding:3px 8px; border-radius:2px;
+  }
+  .section-head h2{
+    font-family:var(--disp); font-weight:600; font-size:1.6rem;
+    color:var(--text-hi);
+  }
+  .section-sub{color:var(--text-mid); font-size:14.5px; max-width:600px; margin-bottom:36px;}
+
+  /* ===== CASE FILES (redaction reveal) ===== */
+  .files{display:flex; flex-direction:column; gap:14px;}
+  .file{
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-radius:4px;
+    padding:20px 22px;
+    position:relative;
+    transition:border-color .25s ease;
+  }
+  .file:hover{border-color:var(--stamp);}
+  .file-top{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:var(--mono); font-size:11.5px; color:var(--text-mid);
+    margin-bottom:12px; flex-wrap:wrap; gap:8px;
+  }
+  .sev{
+    font-family:var(--mono); font-weight:600; font-size:10.5px;
+    letter-spacing:0.08em; padding:3px 8px; border-radius:2px;
+  }
+  .sev.critical{background:rgba(176,70,60,0.15); color:var(--alert); border:1px solid rgba(176,70,60,0.5);}
+  .sev.high{background:rgba(192,138,46,0.15); color:var(--stamp); border:1px solid rgba(192,138,46,0.5);}
+  .sev.medium{background:rgba(127,166,194,0.12); color:var(--steel); border:1px solid rgba(127,166,194,0.4);}
+
+  .file-title{
+    font-family:var(--sans); font-weight:600; font-size:16px;
+    color:var(--text-hi); margin-bottom:6px;
+  }
+  .redacted{
+    background:var(--redact);
+    color:var(--redact);
+    border-radius:2px;
+    padding:0 4px;
+    user-select:none;
+    transition:color .18s ease, background .18s ease;
+    cursor:default;
+  }
+  .file:hover .redacted{ color: var(--redact); }
+  .file-desc{color:var(--text-mid); font-size:14px; margin-bottom:10px;}
+  .file-foot{
+    display:flex; gap:18px; flex-wrap:wrap;
+    font-family:var(--mono); font-size:11.5px; color:var(--text-mid);
+  }
+  .file-foot b{color:var(--paper-dim); font-weight:500;}
+
+  /* ===== METHODOLOGY / SKILLS ===== */
+  .skill-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(210px,1fr));
+    gap:22px;
+  }
+  .skill-card{
+    border-left:2px solid var(--panel-edge);
+    padding-left:16px;
+  }
+  .skill-card h3{
+    font-family:var(--disp); font-weight:600; font-size:14.5px;
+    color:var(--text-hi); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.03em;
+  }
+  .skill-card p{color:var(--text-mid); font-size:13.5px;}
+
+  /* ===== PROOF / VERIFICATION CARD ===== */
+  .proof-card{
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-left:3px solid var(--stamp);
+    border-radius:4px;
+    padding:24px 26px;
+  }
+  .proof-head{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px;}
+  .proof-chip{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:0.05em;
+    color:var(--stamp); border:1px solid rgba(192,138,46,0.4);
+    background:rgba(192,138,46,0.08);
+    padding:4px 9px; border-radius:2px;
+  }
+  .proof-chip.alt{color:var(--text-mid); border-color:var(--panel-edge); background:transparent;}
+  .proof-body{
+    font-family:var(--mono); font-size:13px; color:var(--text-mid);
+    display:flex; flex-direction:column; gap:10px;
+    background:rgba(0,0,0,0.2);
+    padding:16px 18px; border-radius:3px;
+  }
+  .proof-body .plabel{color:var(--paper-dim); margin-right:6px;}
+  .proof-foot{
+    margin-top:16px; font-size:12.5px; color:var(--text-mid); font-style:italic;
+  }
+
+  /* ===== PROCESS TIMELINE ===== */
+  .timeline{
+    display:flex; flex-direction:column; border-left:1px solid var(--panel-edge); margin-left:6px;
+  }
+  .tl-item{position:relative; padding:0 0 30px 28px;}
+  .tl-item::before{
+    content:""; position:absolute; left:-5px; top:4px;
+    width:9px; height:9px; border-radius:50%;
+    background:var(--stamp); box-shadow:0 0 0 4px var(--ink);
+  }
+  .tl-item h4{font-family:var(--mono); font-size:13px; color:var(--stamp); letter-spacing:0.04em; margin-bottom:4px;}
+  .tl-item p{color:var(--text-mid); font-size:14px; max-width:560px;}
+
+  /* ===== FOOTER / CONTACT ===== */
+  footer{
+    border-top:1px solid var(--panel-edge);
+    padding:56px 0 60px;
+  }
+  .footer-grid{
+    display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:24px;
+  }
+  .footer-grid h2{
+    font-family:var(--disp); font-weight:700; font-size:1.8rem; max-width:400px; color:var(--text-hi);
+  }
+  .links{display:flex; gap:20px; flex-wrap:wrap; font-family:var(--mono); font-size:13.5px;}
+  .fine{
+    margin-top:40px; font-family:var(--mono); font-size:11px; color:var(--text-mid);
+    border-top:1px solid var(--panel-edge); padding-top:18px;
+  }
+
+  @media (max-width:640px){
+    .stats-grid{grid-template-columns:repeat(2,1fr);}
+    .case-meta{flex-direction:column;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+    *{transition:none !important;}
+  }
+
+  /* keyboard focus visibility */
+  a:focus-visible, button:focus-visible{
+    outline:2px solid var(--stamp); outline-offset:3px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="cover">
+    <div class="case-meta">
+      <div>
+        <span>FILE TYPE // PUBLIC RESEARCH PORTFOLIO</span>
+        <span>REGION // NCR, INDIA</span>
+      </div>
+      <div class="stamp-box">UNCLASSIFIED — FOR REVIEW</div>
+    </div>
+    <h1 class="name">Shubham Tripathi</h1>
+    <div class="role-line">Cybersecurity Analyst<span class="sep">/</span>Threat Hunting &amp; OSINT<span class="sep">/</span>Coordinated Disclosure</div>
+    <p class="summary">
+      I hunt for what shouldn't be public. Dorked search paths, exposed leak-forums, misconfigured servers,
+      credentials sitting in plain sight — I find them before someone with worse intentions does, then report
+      them the right way: quietly, with proof, to the people who can actually fix them.
+    </p>
+  </header>
+
+  <section class="stats">
+    <div class="stats-grid">
+      <div class="stat"><div class="num">15+</div><div class="label">Coordinated Disclosures</div></div>
+      <div class="stat"><div class="num">4</div><div class="label">Sectors Covered</div></div>
+      <div class="stat"><div class="num">CERT-In</div><div class="label">Primary Reporting Channel</div></div>
+      <div class="stat"><div class="num">0</div><div class="label">Data Retained Post-Report</div></div>
+    </div>
+  </section>
+
+  <section class="section" id="cases">
+    <div class="section-head">
+      <span class="tag">CASE LOG</span>
+      <h2>Selected Findings</h2>
+    </div>
+    <p class="section-sub">
+      Organization names are withheld in line with responsible disclosure practice, even after remediation.
+      Hover a redacted line — it stays sealed. That's intentional; the sector and severity tell the story that matters.
+    </p>
+
+    <div class="files">
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-07-B</span>
+          <span class="sev critical">CRITICAL</span>
+        </div>
+        <div class="file-title">Live production database credentials in a public <span class="redacted">██████████</span> file</div>
+        <p class="file-desc">A regulated banking institution's server exposed plaintext database credentials at a predictable config path — full backend access was possible without any exploitation.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> Banking</span>
+          <span><b>Reported to:</b> CERT-In</span>
+          <span><b>Status:</b> Acknowledged</span>
+        </div>
+      </div>
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-07-G</span>
+          <span class="sev critical">CRITICAL</span>
+        </div>
+        <div class="file-title">JWT signing secret exposed alongside database and mail credentials</div>
+        <p class="file-desc">A Government of India research institute's API config leaked its token-signing secret — sufficient to forge valid authentication tokens without ever touching a password.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> Government / Research</span>
+          <span><b>Reported to:</b> CERT-In</span>
+          <span><b>Status:</b> Filed</span>
+        </div>
+      </div>
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-06-M</span>
+          <span class="sev high">HIGH</span>
+        </div>
+        <div class="file-title">SQL injection bypassing admin authentication on a healthcare portal</div>
+        <p class="file-desc">An unauthenticated injection point in an admin login flow allowed full panel access, exposing hospital and clinic records.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> Healthcare</span>
+          <span><b>Reported to:</b> Org direct + CERT-In</span>
+          <span><b>Status:</b> Filed</span>
+        </div>
+      </div>
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-07-N</span>
+          <span class="sev high">HIGH</span>
+        </div>
+        <div class="file-title">Exposed <span class="redacted">████</span> directory enabling full source reconstruction</div>
+        <p class="file-desc">A CRM vendor's development subdomain exposed version-control internals, making complete source and commit-history recovery possible for anyone who found the path.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> SaaS / Private</span>
+          <span><b>Reported to:</b> Vendor direct</span>
+          <span><b>Status:</b> Filed</span>
+        </div>
+      </div>
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-07-E</span>
+          <span class="sev medium">MEDIUM</span>
+        </div>
+        <div class="file-title">Publicly indexed infostealer logs exposing government portal credentials</div>
+        <p class="file-desc">OSINT monitoring surfaced valid login credentials for multiple .gov.in portals inside stealer-log datasets, likely harvested from compromised end-user devices rather than the portals themselves.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> Government</span>
+          <span><b>Reported to:</b> CERT-In</span>
+          <span><b>Status:</b> Filed</span>
+        </div>
+      </div>
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-06-A</span>
+          <span class="sev medium">MEDIUM</span>
+        </div>
+        <div class="file-title">Debug logs exposing internal server paths and framework internals</div>
+        <p class="file-desc">Production-mode debug logging left publicly readable, revealing directory structure, middleware logic, and — in one instance — a stored admin credential hash.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> Education / Research</span>
+          <span><b>Reported to:</b> CERT-In / Direct</span>
+          <span><b>Status:</b> Filed</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="section" id="method">
+    <div class="section-head">
+      <span class="tag">TRADECRAFT</span>
+      <h2>How I Find What I Find</h2>
+    </div>
+    <p class="section-sub">
+      Not exploits, not zero-days — just knowing where to look, and enough scripting discipline to look at scale
+      instead of one URL at a time.
+    </p>
+    <div class="skill-grid">
+      <div class="skill-card">
+        <h3>Search-Engine Dorking</h3>
+        <p>Advanced Google/Shodan/Censys dork strings to surface exposed config files, panels, and directories across large index sets — the same footprint an attacker would map first.</p>
+      </div>
+      <div class="skill-card">
+        <h3>Cyber Threat Intelligence</h3>
+        <p>Monitoring leak forums and stealer-log marketplaces for credentials tied to Indian domains, correlating exposure back to a real, ownable incident rather than raw noise.</p>
+      </div>
+      <div class="skill-card">
+        <h3>Bash &amp; Recon Scripting</h3>
+        <p>Lightweight shell tooling to batch-verify dork hits, de-duplicate false positives, and triage severity before a single report gets written.</p>
+      </div>
+      <div class="skill-card">
+        <h3>Coordinated Disclosure</h3>
+        <p>CERT-In / CERT-Bund filing, direct-to-organization outreach, registry-verified attribution, and redaction-first evidence handling on every report.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="verify">
+    <div class="section-head">
+      <span class="tag">VERIFY</span>
+      <h2>This Isn't Just a Claim</h2>
+    </div>
+    <p class="section-sub">
+      Reference numbers and organization names stay off this page by design — publishing them would itself be a
+      disclosure risk. What's shown below is the real acknowledgment format CERT-In sends back, with all
+      identifying fields removed.
+    </p>
+    <div class="proof-card">
+      <div class="proof-head">
+        <span class="proof-chip">CERT-In — Acknowledgment Format</span>
+        <span class="proof-chip alt">Reference redacted by design</span>
+      </div>
+      <div class="proof-body">
+        <p><span class="plabel">From:</span> incident<span class="redacted">████</span>@cert-in.org.in</p>
+        <p><span class="plabel">Subject:</span> RE: <span class="redacted">██████████████████████████</span></p>
+        <p><span class="plabel">Body:</span> "Thank you for reporting the incident to CERT-In. Your report has been logged under reference <span class="redacted">████████████</span> and forwarded for necessary action."</p>
+      </div>
+      <div class="proof-foot">Full acknowledgment threads available on request — for recruiters, CISOs, or verification purposes only.</div>
+    </div>
+  </section>
+
+  <section class="section" id="process">
+    <div class="section-head">
+      <span class="tag">PROTOCOL</span>
+      <h2>How a Finding Becomes a Report</h2>
+    </div>
+    <div class="timeline">
+      <div class="tl-item">
+        <h4>01 — CONFIRM</h4>
+        <p>Verify the exposure is real. Nothing further is downloaded, logged into, or extracted beyond what proves the issue.</p>
+      </div>
+      <div class="tl-item">
+        <h4>02 — REDACT</h4>
+        <p>Every credential, key, and identifier is fully masked before it leaves my machine — partial redaction isn't redaction.</p>
+      </div>
+      <div class="tl-item">
+        <h4>03 — IDENTIFY</h4>
+        <p>The affected organization is confirmed through public registry data, not guessed, before a report is filed.</p>
+      </div>
+      <div class="tl-item">
+        <h4>04 — REPORT</h4>
+        <p>Filed to CERT-In and, where practical, directly to the affected organization in parallel.</p>
+      </div>
+      <div class="tl-item">
+        <h4>05 — WAIT</h4>
+        <p>A reasonable remediation window is given before any public reference to the finding — sector and category only, never identifying detail.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-grid">
+      <h2>Reports that make systems safer, not headlines.</h2>
+      <div class="links">
+        <a href="https://github.com/shubhamgitstar" target="_blank" rel="noopener">GitHub ↗</a>
+        <a href="#" target="_blank" rel="noopener">LinkedIn ↗</a>
+        <a href="mailto:shubhamtripathi3@kpmg.com">Contact ↗</a>
+      </div>
+    </div>
+    <div class="fine">
+      Details on this page are generalized and anonymized in line with responsible disclosure practice.
+      No organization names, credentials, or exploit details are published here or elsewhere.
+    </div>
+  </footer>
+</div>
+
+<script>
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduceMotion && 'IntersectionObserver' in window) {
+    const revealables = document.querySelectorAll('.file, .skill-card, .proof-card, .tl-item, .stat');
+    revealables.forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(14px)';
+      el.style.transition = 'opacity .5s ease, transform .5s ease';
+    });
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    revealables.forEach(el => io.observe(el));
+  }
+</script>
+
+</body>
+</html>
