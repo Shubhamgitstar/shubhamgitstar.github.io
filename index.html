@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -9,15 +9,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --void:#050506;
-  --panel:#0D0A0C;
-  --edge:#2A1418;
+  --void:#08090D;
+  --panel:#0F111A;
+  --edge:#232742;
   --bone:#EDEAE0;
-  --dim:#8C7F82;
-  --signal:#FF2E44;
-  --breach:#FF6B3D;
-  --alert:#FF2E44;
-  --cold:#5B6B8C;
+  --dim:#8891AC;
+  --signal:#6E7BFF;
+  --breach:#FF8A3D;
+  --alert:#FF4D5E;
   --mono:'IBM Plex Mono', monospace;
   --disp:'Fraunces', serif;
   --sans:'Space Grotesk', sans-serif;
@@ -413,4 +412,158 @@ function resize(){
   canvas.width = W*DPR; canvas.height = H*DPR;
   ctx.setTransform(DPR,0,0,DPR,0,0);
 }
-window.addEventListener('resize', re
+window.addEventListener('resize', resize); resize();
+let sweepAngle = 0;
+function drawRadar(progress){
+  ctx.clearRect(0,0,W,H);
+  const cx = W/2, cy = H/2;
+  const maxR = Math.max(W,H)*0.55;
+  // rings
+  ctx.strokeStyle = 'rgba(110,123,255,0.12)';
+  ctx.lineWidth = 1;
+  for(let i=1;i<=4;i++){
+    ctx.beginPath();
+    ctx.arc(cx,cy, maxR*(i/4)*(0.3+progress*0.7), 0, Math.PI*2);
+    ctx.stroke();
+  }
+  // sweep
+  sweepAngle += 0.012 + progress*0.01;
+  const grad = ctx.createConicGradient ? ctx.createConicGradient(sweepAngle, cx, cy) : null;
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.rotate(sweepAngle);
+  const sweepR = maxR*(0.3+progress*0.7);
+  const g = ctx.createLinearGradient(0,0,sweepR,0);
+  g.addColorStop(0,'rgba(110,123,255,0.35)');
+  g.addColorStop(1,'rgba(110,123,255,0)');
+  ctx.beginPath();
+  ctx.moveTo(0,0);
+  ctx.arc(0,0,sweepR, -0.35, 0.02);
+  ctx.closePath();
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.restore();
+  // breach flash on phase 2/3
+  if(progress > 0.55){
+    const flashA = Math.min((progress-0.55)*1.5, 0.18) * (0.6+0.4*Math.sin(Date.now()/220));
+    ctx.fillStyle = rgba(255,138,61,${flashA});
+    ctx.beginPath(); ctx.arc(cx,cy, sweepR*0.4, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function onScrub(){
+  const rect = scrub.getBoundingClientRect();
+  const total = rect.height - window.innerHeight;
+  let progress = Math.min(Math.max(-rect.top / total, 0), 1);
+  drawRadar(progress);
+
+  // title fades out in first 15%
+  const titleOp = Math.max(1 - progress/0.12, 0);
+  titleblock.style.opacity = titleOp;
+  titleblock.style.transform = translateY(${-progress*40}px);
+  hint.style.opacity = Math.max(1-progress*6,0);
+
+  // phase captions across remaining scroll, 4 phases
+  const segs = 4;
+  const local = Math.max(progress-0.14,0)/0.86;
+  const idx = Math.min(Math.floor(local*segs), segs-1);
+  phases.forEach((p,i)=>{
+    p.classList.toggle('active', i===idx && progress>0.14);
+  });
+}
+window.addEventListener('scroll', onScrub);
+function raf(){ if(!loader.classList.contains('done')){} drawRadar(lastProgressCache||0); requestAnimationFrame(raf);}  
+let lastProgressCache = 0;
+function loop(){
+  const rect = scrub.getBoundingClientRect();
+  const total = rect.height - window.innerHeight;
+  lastProgressCache = Math.min(Math.max(-rect.top / total, 0), 1);
+  drawRadar(lastProgressCache);
+  requestAnimationFrame(loop);
+}
+loop();
+
+/* ---------- Watcher: mouse-tracked scanning reticle ---------- */
+const eyeCanvas = document.getElementById('eyeCanvas');
+const eyeCtx = eyeCanvas.getContext('2d');
+const eyeReadout = document.getElementById('eyeReadout');
+let targetX=0, targetY=0, curX=0, curY=0;
+function resizeEye(){
+  const size = eyeCanvas.clientWidth;
+  eyeCanvas.width = size*(window.devicePixelRatio||1);
+  eyeCanvas.height = size*(window.devicePixelRatio||1);
+  eyeCtx.setTransform(window.devicePixelRatio||1,0,0,window.devicePixelRatio||1,0,0);
+}
+window.addEventListener('resize', resizeEye);
+window.addEventListener('load', resizeEye);
+setTimeout(resizeEye, 300);
+
+window.addEventListener('mousemove', e=>{
+  const rect = eyeCanvas.getBoundingClientRect();
+  const cx = rect.left+rect.width/2, cy = rect.top+rect.height/2;
+  const dx = e.clientX-cx, dy = e.clientY-cy;
+  const dist = Math.min(Math.hypot(dx,dy), rect.width*0.32);
+  const ang = Math.atan2(dy,dx);
+  targetX = Math.cos(ang)*dist;
+  targetY = Math.sin(ang)*dist;
+  eyeReadout.textContent = 'TRACK '+(dist/(rect.width*0.32)*90).toFixed(1);
+});
+
+function drawEye(){
+  const size = eyeCanvas.clientWidth || 560;
+  eyeCtx.clearRect(0,0,size,size);
+  const cx=size/2, cy=size/2, R=size*0.42;
+  curX += (targetX-curX)*0.08;
+  curY += (targetY-curY)*0.08;
+
+  eyeCtx.strokeStyle='rgba(110,123,255,0.5)';
+  eyeCtx.lineWidth=1.5;
+  eyeCtx.beginPath(); eyeCtx.arc(cx,cy,R,0,Math.PI*2); eyeCtx.stroke();
+  eyeCtx.beginPath(); eyeCtx.arc(cx,cy,R*0.7,0,Math.PI*2); eyeCtx.strokeStyle='rgba(110,123,255,0.2)'; eyeCtx.stroke();
+
+  // crosshair ticks
+  eyeCtx.strokeStyle='rgba(237,234,224,0.25)';
+  for(let a=0;a<360;a+=15){
+    const rad=a*Math.PI/180;
+    const inner = a%90===0? R*0.86 : R*0.92;
+    eyeCtx.beginPath();
+    eyeCtx.moveTo(cx+Math.cos(rad)*inner, cy+Math.sin(rad)*inner);
+    eyeCtx.lineTo(cx+Math.cos(rad)*R, cy+Math.sin(rad)*R);
+    eyeCtx.stroke();
+  }
+
+  // reticle (target)
+  const tx = cx+curX*0.7, ty = cy+curY*0.7;
+  eyeCtx.strokeStyle='#FF8A3D';
+  eyeCtx.lineWidth=1.5;
+  eyeCtx.beginPath(); eyeCtx.arc(tx,ty,18,0,Math.PI*2); eyeCtx.stroke();
+  eyeCtx.beginPath(); eyeCtx.moveTo(tx-26,ty); eyeCtx.lineTo(tx-10,ty); eyeCtx.moveTo(tx+10,ty); eyeCtx.lineTo(tx+26,ty);
+  eyeCtx.moveTo(tx,ty-26); eyeCtx.lineTo(tx,ty-10); eyeCtx.moveTo(tx,ty+10); eyeCtx.lineTo(tx,ty+26);
+  eyeCtx.stroke();
+
+  // core dot
+  eyeCtx.fillStyle='#6E7BFF';
+  eyeCtx.beginPath(); eyeCtx.arc(cx,cy,4,0,Math.PI*2); eyeCtx.fill();
+
+  requestAnimationFrame(drawEye);
+}
+drawEye();
+
+/* ---------- Methods section reveal glow following cursor ---------- */
+const methodsSection = document.getElementById('methods');
+const methodsReveal = document.getElementById('methodsReveal');
+methodsSection.addEventListener('mousemove', e=>{
+  const rect = methodsSection.getBoundingClientRect();
+  methodsReveal.style.left = (e.clientX-rect.left)+'px';
+  methodsReveal.style.top = (e.clientY-rect.top)+'px';
+  methodsReveal.style.opacity = '1';
+});
+methodsSection.addEventListener('mouseleave', ()=>{ methodsReveal.style.opacity='0'; });
+
+/* ---------- Reduced motion ---------- */
+if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+  document.querySelectorAll('*').forEach(el=>el.style.animation='none');
+}
+</script>
+</body>
+</html>
