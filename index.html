@@ -1,569 +1,526 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SHUBHAM TRIPATHI — SIGNAL / THREAT RESEARCH</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shubham Tripathi — Threat Hunting &amp; Responsible Disclosure</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{
-  --void:#08090D;
-  --panel:#0F111A;
-  --edge:#232742;
-  --bone:#EDEAE0;
-  --dim:#8891AC;
-  --signal:#6E7BFF;
-  --breach:#FF8A3D;
-  --alert:#FF4D5E;
-  --mono:'IBM Plex Mono', monospace;
-  --disp:'Fraunces', serif;
-  --sans:'Space Grotesk', sans-serif;
-}
-*{margin:0; padding:0; box-sizing:border-box;}
-html{scroll-behavior:smooth;}
-body{
-  background:var(--void); color:var(--bone);
-  font-family:var(--sans); overflow-x:hidden; cursor:none;
-}
-::selection{background:var(--signal); color:var(--void);}
-a{color:inherit; text-decoration:none;}
+  :root{
+    --ink:#0B1220;
+    --panel:#121B2E;
+    --panel-edge:#22304a;
+    --paper:#E8E6DD;
+    --paper-dim:#c9c6b8;
+    --redact:#0A0A0A;
+    --stamp:#C08A2E;
+    --alert:#B0463C;
+    --steel:#7FA6C2;
+    --text-hi:#EDEBE1;
+    --text-mid:#9AA6B8;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --disp: 'Space Grotesk', sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--ink);
+    color:var(--text-hi);
+    font-family:var(--sans);
+    line-height:1.55;
+    overflow-x:hidden;
+  }
+  a{color:var(--steel); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  ::selection{background:var(--stamp); color:#0B1220;}
 
-/* ============ PRELOADER ============ */
-.loader{
-  position:fixed; inset:0; z-index:999; background:var(--void);
-  display:flex; align-items:center; justify-content:center;
-  transition:opacity .8s ease, visibility .8s ease;
-}
-.loader.done{opacity:0; visibility:hidden; pointer-events:none;}
-.loader__inner{text-align:center; width:280px;}
-.loader__glyph{
-  font-family:var(--mono); font-size:11px; letter-spacing:.3em; color:var(--dim);
-  margin-bottom:18px;
-}
-.loader__bar{
-  height:1px; background:var(--edge); position:relative; overflow:hidden; margin-bottom:14px;
-}
-.loader__bar span{
-  position:absolute; left:0; top:0; height:100%; width:0%; background:var(--signal);
-  box-shadow:0 0 12px var(--signal);
-}
-.loader__meta{
-  display:flex; justify-content:space-between; font-family:var(--mono);
-  font-size:10px; letter-spacing:.15em; color:var(--dim);
-}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 28px;}
 
-/* ============ AMBIENT LAYERS ============ */
-.grain{
-  position:fixed; inset:0; z-index:60; pointer-events:none; opacity:.045; mix-blend-mode:overlay;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-.vignette{
-  position:fixed; inset:0; z-index:55; pointer-events:none;
-  background:radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,.65) 100%);
-}
-.cursor{
-  position:fixed; width:22px; height:22px; border:1px solid var(--signal); border-radius:50%;
-  pointer-events:none; z-index:900; transform:translate(-50%,-50%);
-  transition:width .2s, height .2s, border-color .2s;
-  mix-blend-mode:difference;
-}
-.cursor::after{
-  content:""; position:absolute; top:50%; left:50%; width:2px; height:2px;
-  background:var(--signal); border-radius:50%; transform:translate(-50%,-50%);
-}
-@media (max-width:860px){ body{cursor:auto;} .cursor{display:none;} }
+  /* faint document texture */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+    pointer-events:none;
+    z-index:0;
+  }
 
-/* ============ CHROME ============ */
-.chrome{
-  position:fixed; top:0; left:0; right:0; z-index:80;
-  display:flex; justify-content:space-between; align-items:center;
-  padding:22px 34px; font-family:var(--mono); font-size:11px; letter-spacing:.12em;
-  mix-blend-mode:difference;
-}
-.chrome__mark{display:flex; align-items:center; gap:10px; color:var(--bone);}
-.chrome__mark svg{width:20px; height:20px;}
-.chrome__nav{display:flex; gap:26px; color:var(--dim);}
-.chrome__nav a:hover{color:var(--bone);}
-@media (max-width:640px){ .chrome__nav{gap:14px; font-size:9px;} }
+  /* ===== HEADER / COVER SHEET ===== */
+  header.cover{
+    position:relative;
+    padding:56px 0 64px;
+    border-bottom:1px solid var(--panel-edge);
+  }
+  .case-meta{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    font-family:var(--mono); font-size:12px; color:var(--text-mid);
+    letter-spacing:0.04em;
+    margin-bottom:40px;
+    flex-wrap:wrap; gap:10px;
+  }
+  .case-meta span{display:block;}
+  .stamp-box{
+    border:2px solid var(--stamp);
+    color:var(--stamp);
+    font-family:var(--mono);
+    font-weight:600;
+    font-size:11px;
+    letter-spacing:0.18em;
+    padding:6px 10px;
+    transform:rotate(-3deg);
+    display:inline-block;
+    opacity:0.9;
+  }
+  h1.name{
+    font-family:var(--disp);
+    font-weight:700;
+    font-size:clamp(2.4rem, 6vw, 4rem);
+    letter-spacing:-0.02em;
+    color:var(--text-hi);
+    margin-bottom:10px;
+  }
+  .role-line{
+    font-family:var(--mono);
+    font-size:15px;
+    color:var(--steel);
+    margin-bottom:26px;
+  }
+  .role-line .sep{color:var(--text-mid); margin:0 10px;}
+  .summary{
+    max-width:620px;
+    color:var(--text-mid);
+    font-size:15.5px;
+  }
+  .summary strong{color:var(--text-hi); font-weight:600;}
 
-.rail{
-  position:fixed; top:50%; z-index:40; transform:translateY(-50%) rotate(180deg);
-  writing-mode:vertical-rl; font-family:var(--mono); font-size:10px; letter-spacing:.25em;
-  color:var(--dim); opacity:.6;
-}
-.rail--left{left:20px;}
-.rail--right{right:20px; transform:translateY(-50%);}
-@media (max-width:640px){ .rail{display:none;} }
+  /* ===== STATS STRIP ===== */
+  section.stats{
+    border-bottom:1px solid var(--panel-edge);
+  }
+  .stats-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:1px;
+    background:var(--panel-edge);
+  }
+  .stat{
+    background:var(--ink);
+    padding:28px 22px;
+  }
+  .stat .num{
+    font-family:var(--disp);
+    font-weight:700;
+    font-size:2.1rem;
+    color:var(--text-hi);
+  }
+  .stat .label{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--text-mid);
+    letter-spacing:0.05em;
+    margin-top:4px;
+    text-transform:uppercase;
+  }
 
-/* ============ HERO / SCRUB ============ */
-.scrub{ height:400vh; position:relative; }
-.scrub__sticky{
-  position:sticky; top:0; height:100vh; overflow:hidden;
-  display:flex; align-items:center; justify-content:center;
-  background:radial-gradient(ellipse at 50% 40%, #10132199, var(--void) 70%);
-}
-#radarCanvas{ position:absolute; inset:0; width:100%; height:100%; }
-.phase{
-  position:absolute; text-align:center; opacity:0; transition:opacity .5s ease;
-  pointer-events:none;
-}
-.phase.active{ opacity:1; }
-.phase__eyebrow{
-  font-family:var(--mono); font-size:11px; letter-spacing:.35em; color:var(--breach);
-  margin-bottom:14px;
-}
-.phase__title{
-  font-family:var(--disp); font-weight:600; font-size:clamp(2.2rem,7vw,4.6rem);
-  letter-spacing:-.01em;
-}
-.phase__sub{
-  font-family:var(--sans); color:var(--dim); margin-top:14px; font-size:15px; max-width:480px;
-  margin-left:auto; margin-right:auto;
-}
-.titleblock{ position:absolute; text-align:center; z-index:5; }
-.titleblock__kicker{
-  font-family:var(--mono); font-size:11px; letter-spacing:.3em; color:var(--dim); margin-bottom:16px;
-}
-.titleblock__name{
-  font-family:var(--disp); font-weight:900; font-size:clamp(2.6rem,9vw,6rem);
-  letter-spacing:-.02em; line-height:1;
-}
-.titleblock__role{
-  font-family:var(--mono); font-size:12px; letter-spacing:.25em; color:var(--signal); margin-top:18px;
-}
-.hint{
-  position:absolute; bottom:34px; left:50%; transform:translateX(-50%);
-  display:flex; flex-direction:column; align-items:center; gap:8px;
-  font-family:var(--mono); font-size:10px; letter-spacing:.25em; color:var(--dim);
-}
-.hint__line{ width:1px; height:34px; background:linear-gradient(var(--dim), transparent); }
+  /* ===== SECTION HEADINGS ===== */
+  .section{padding:72px 0;}
+  .section-head{
+    display:flex; align-items:baseline; gap:14px;
+    margin-bottom:34px;
+  }
+  .section-head .tag{
+    font-family:var(--mono); font-size:11px; color:var(--stamp);
+    letter-spacing:0.15em; border:1px solid var(--stamp);
+    padding:3px 8px; border-radius:2px;
+  }
+  .section-head h2{
+    font-family:var(--disp); font-weight:600; font-size:1.6rem;
+    color:var(--text-hi);
+  }
+  .section-sub{color:var(--text-mid); font-size:14.5px; max-width:600px; margin-bottom:36px;}
 
-/* ============ WATCHER (mouse tracked) ============ */
-.watcher{ position:relative; padding:14vh 0; }
-.watcher__sticky{
-  min-height:80vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  position:relative;
-}
-#eyeCanvas{ width:min(70vw,560px); height:min(70vw,560px); }
-.watcher__frame{ position:absolute; inset:0; pointer-events:none; }
-.watcher__label{
-  position:absolute; font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--dim);
-}
-.watcher__label--tl{ top:8%; left:14%; }
-.watcher__label--tr{ top:8%; right:14%; color:var(--signal); }
-.watcher__label--bl{ bottom:8%; left:14%; }
-.watcher__label--br{ bottom:8%; right:14%; }
-.watcher__copy{ text-align:center; margin-top:40px; max-width:520px; padding:0 20px; }
-.watcher__copy h2{ font-family:var(--disp); font-weight:600; font-size:clamp(1.8rem,4vw,2.6rem); }
-.watcher__copy h2 span{ color:var(--signal); }
-.watcher__copy p{ color:var(--dim); margin-top:12px; font-size:15px; }
+  /* ===== CASE FILES (redaction reveal) ===== */
+  .files{display:flex; flex-direction:column; gap:14px;}
+  .file{
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-radius:4px;
+    padding:20px 22px;
+    position:relative;
+    transition:border-color .25s ease;
+  }
+  .file:hover{border-color:var(--stamp);}
+  .file-top{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:var(--mono); font-size:11.5px; color:var(--text-mid);
+    margin-bottom:12px; flex-wrap:wrap; gap:8px;
+  }
+  .sev{
+    font-family:var(--mono); font-weight:600; font-size:10.5px;
+    letter-spacing:0.08em; padding:3px 8px; border-radius:2px;
+  }
+  .sev.critical{background:rgba(176,70,60,0.15); color:var(--alert); border:1px solid rgba(176,70,60,0.5);}
+  .sev.high{background:rgba(192,138,46,0.15); color:var(--stamp); border:1px solid rgba(192,138,46,0.5);}
+  .sev.medium{background:rgba(127,166,194,0.12); color:var(--steel); border:1px solid rgba(127,166,194,0.4);}
 
-/* ============ METHODS GRID w/ reveal ============ */
-.methods{
-  position:relative; padding:16vh 34px; overflow:hidden;
-  background:var(--panel); border-top:1px solid var(--edge); border-bottom:1px solid var(--edge);
-}
-.methods__reveal{
-  position:absolute; width:420px; height:420px; border-radius:50%; pointer-events:none;
-  background:radial-gradient(circle, rgba(110,123,255,0.14), transparent 70%);
-  transform:translate(-50%,-50%); left:50%; top:50%; transition:opacity .3s;
-  opacity:0;
-}
-.methods__inner{ max-width:1040px; margin:0 auto; position:relative; z-index:2; }
-.methods__eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:.3em; color:var(--breach); }
-.methods__head{ font-family:var(--disp); font-weight:600; font-size:clamp(1.8rem,4.5vw,3rem); margin-top:16px; max-width:640px; }
-.methods__list{ margin-top:8vh; display:flex; flex-direction:column; }
-.method{
-  display:grid; grid-template-columns:80px 1fr; gap:24px; padding:32px 0;
-  border-top:1px solid var(--edge); align-items:baseline;
-}
-.method:last-child{ border-bottom:1px solid var(--edge); }
-.method__num{ font-family:var(--mono); font-size:12px; color:var(--dim); }
-.method__title{ font-family:var(--disp); font-weight:600; font-size:1.4rem; margin-bottom:8px; }
-.method__desc{ color:var(--dim); font-size:14.5px; max-width:600px; }
+  .file-title{
+    font-family:var(--sans); font-weight:600; font-size:16px;
+    color:var(--text-hi); margin-bottom:6px;
+  }
+  .redacted{
+    background:var(--redact);
+    color:var(--redact);
+    border-radius:2px;
+    padding:0 4px;
+    user-select:none;
+    transition:color .18s ease, background .18s ease;
+    cursor:default;
+  }
+  .file:hover .redacted{ color: var(--redact); }
+  .file-desc{color:var(--text-mid); font-size:14px; margin-bottom:10px;}
+  .file-foot{
+    display:flex; gap:18px; flex-wrap:wrap;
+    font-family:var(--mono); font-size:11.5px; color:var(--text-mid);
+  }
+  .file-foot b{color:var(--paper-dim); font-weight:500;}
 
-/* ============ CASE LOG ============ */
-.cases{ padding:16vh 34px; max-width:1040px; margin:0 auto; }
-.cases__eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:.3em; color:var(--breach); }
-.cases__head{ font-family:var(--disp); font-weight:600; font-size:clamp(1.8rem,4.5vw,2.8rem); margin-top:16px; margin-bottom:8vh; max-width:600px; }
-.case{
-  border:1px solid var(--edge); border-radius:4px; padding:22px 26px; margin-bottom:14px;
-  background:var(--panel); transition:border-color .25s, transform .25s;
-}
-.case:hover{ border-color:var(--signal); transform:translateX(6px); }
-.case__top{ display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--dim); margin-bottom:10px; flex-wrap:wrap; gap:8px;}
-.case__sev{ padding:2px 8px; border-radius:2px; font-weight:600; letter-spacing:.06em; }
-.case__sev.critical{ color:var(--alert); border:1px solid rgba(255,77,94,.4); background:rgba(255,77,94,.08); }
-.case__sev.high{ color:var(--breach); border:1px solid rgba(255,138,61,.4); background:rgba(255,138,61,.08); }
-.case__sev.medium{ color:var(--signal); border:1px solid rgba(110,123,255,.4); background:rgba(110,123,255,.08); }
-.case__title{ font-family:var(--sans); font-weight:600; font-size:16px; margin-bottom:6px; }
-.case__desc{ color:var(--dim); font-size:14px; }
-.redact{ background:#000; color:#000; border-radius:2px; padding:0 3px; }
+  /* ===== METHODOLOGY / SKILLS ===== */
+  .skill-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(210px,1fr));
+    gap:22px;
+  }
+  .skill-card{
+    border-left:2px solid var(--panel-edge);
+    padding-left:16px;
+  }
+  .skill-card h3{
+    font-family:var(--disp); font-weight:600; font-size:14.5px;
+    color:var(--text-hi); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.03em;
+  }
+  .skill-card p{color:var(--text-mid); font-size:13.5px;}
 
-/* ============ FOOTER ============ */
-footer{
-  padding:14vh 34px 10vh; text-align:center; position:relative; border-top:1px solid var(--edge);
-}
-footer h2{ font-family:var(--disp); font-weight:900; font-size:clamp(2rem,6vw,3.6rem); max-width:700px; margin:0 auto; }
-.footer__links{ margin-top:40px; display:flex; gap:24px; justify-content:center; font-family:var(--mono); font-size:12px; letter-spacing:.1em; flex-wrap:wrap; }
-.footer__links a{ color:var(--dim); border-bottom:1px solid transparent; padding-bottom:2px; }
-.footer__links a:hover{ color:var(--signal); border-color:var(--signal); }
-.footer__fine{ margin-top:60px; font-family:var(--mono); font-size:10px; color:var(--dim); letter-spacing:.05em; max-width:520px; margin-left:auto; margin-right:auto; }
+  /* ===== PROOF / VERIFICATION CARD ===== */
+  .proof-card{
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-left:3px solid var(--stamp);
+    border-radius:4px;
+    padding:24px 26px;
+  }
+  .proof-head{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px;}
+  .proof-chip{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:0.05em;
+    color:var(--stamp); border:1px solid rgba(192,138,46,0.4);
+    background:rgba(192,138,46,0.08);
+    padding:4px 9px; border-radius:2px;
+  }
+  .proof-chip.alt{color:var(--text-mid); border-color:var(--panel-edge); background:transparent;}
+  .proof-body{
+    font-family:var(--mono); font-size:13px; color:var(--text-mid);
+    display:flex; flex-direction:column; gap:10px;
+    background:rgba(0,0,0,0.2);
+    padding:16px 18px; border-radius:3px;
+  }
+  .proof-body .plabel{color:var(--paper-dim); margin-right:6px;}
+  .proof-foot{
+    margin-top:16px; font-size:12.5px; color:var(--text-mid); font-style:italic;
+  }
 
-@media (prefers-reduced-motion: reduce){
-  html{scroll-behavior:auto;}
-  *{transition:none !important; animation:none !important;}
-}
+  /* ===== PROCESS TIMELINE ===== */
+  .timeline{
+    display:flex; flex-direction:column; border-left:1px solid var(--panel-edge); margin-left:6px;
+  }
+  .tl-item{position:relative; padding:0 0 30px 28px;}
+  .tl-item::before{
+    content:""; position:absolute; left:-5px; top:4px;
+    width:9px; height:9px; border-radius:50%;
+    background:var(--stamp); box-shadow:0 0 0 4px var(--ink);
+  }
+  .tl-item h4{font-family:var(--mono); font-size:13px; color:var(--stamp); letter-spacing:0.04em; margin-bottom:4px;}
+  .tl-item p{color:var(--text-mid); font-size:14px; max-width:560px;}
+
+  /* ===== FOOTER / CONTACT ===== */
+  footer{
+    border-top:1px solid var(--panel-edge);
+    padding:56px 0 60px;
+  }
+  .footer-grid{
+    display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:24px;
+  }
+  .footer-grid h2{
+    font-family:var(--disp); font-weight:700; font-size:1.8rem; max-width:400px; color:var(--text-hi);
+  }
+  .links{display:flex; gap:20px; flex-wrap:wrap; font-family:var(--mono); font-size:13.5px;}
+  .fine{
+    margin-top:40px; font-family:var(--mono); font-size:11px; color:var(--text-mid);
+    border-top:1px solid var(--panel-edge); padding-top:18px;
+  }
+
+  @media (max-width:640px){
+    .stats-grid{grid-template-columns:repeat(2,1fr);}
+    .case-meta{flex-direction:column;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+    *{transition:none !important;}
+  }
+
+  /* keyboard focus visibility */
+  a:focus-visible, button:focus-visible{
+    outline:2px solid var(--stamp); outline-offset:3px;
+  }
 </style>
 </head>
 <body>
 
-<div class="loader" id="loader">
-  <div class="loader__inner">
-    <div class="loader__glyph">ESTABLISHING SIGNAL</div>
-    <div class="loader__bar"><span id="loaderFill"></span></div>
-    <div class="loader__meta"><span>INITIALIZING</span><span id="loaderPct">00%</span></div>
-  </div>
+<div class="wrap">
+  <header class="cover">
+    <div class="case-meta">
+      <div>
+        <span>FILE TYPE // PUBLIC RESEARCH PORTFOLIO</span>
+        <span>REGION // NCR, INDIA</span>
+      </div>
+      <div class="stamp-box">UNCLASSIFIED — FOR REVIEW</div>
+    </div>
+    <h1 class="name">Shubham Tripathi</h1>
+    <div class="role-line">Cybersecurity Analyst<span class="sep">/</span>Threat Hunting &amp; OSINT<span class="sep">/</span>Coordinated Disclosure</div>
+    <p class="summary">
+      I hunt for what shouldn't be public. Dorked search paths, exposed leak-forums, misconfigured servers,
+      credentials sitting in plain sight — I find them before someone with worse intentions does, then report
+      them the right way: quietly, with proof, to the people who can actually fix them.
+    </p>
+  </header>
+
+  <section class="stats">
+    <div class="stats-grid">
+      <div class="stat"><div class="num">15+</div><div class="label">Coordinated Disclosures</div></div>
+      <div class="stat"><div class="num">4</div><div class="label">Sectors Covered</div></div>
+      <div class="stat"><div class="num">CERT-In</div><div class="label">Primary Reporting Channel</div></div>
+      <div class="stat"><div class="num">0</div><div class="label">Data Retained Post-Report</div></div>
+    </div>
+  </section>
+
+  <section class="section" id="cases">
+    <div class="section-head">
+      <span class="tag">CASE LOG</span>
+      <h2>Selected Findings</h2>
+    </div>
+    <p class="section-sub">
+      Organization names are withheld in line with responsible disclosure practice, even after remediation.
+      Hover a redacted line — it stays sealed. That's intentional; the sector and severity tell the story that matters.
+    </p>
+
+    <div class="files">
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-07-B</span>
+          <span class="sev critical">CRITICAL</span>
+        </div>
+        <div class="file-title">Live production database credentials in a public <span class="redacted">██████████</span> file</div>
+        <p class="file-desc">A regulated banking institution's server exposed plaintext database credentials at a predictable config path — full backend access was possible without any exploitation.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> Banking</span>
+          <span><b>Reported to:</b> CERT-In</span>
+          <span><b>Status:</b> Acknowledged</span>
+        </div>
+      </div>
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-07-G</span>
+          <span class="sev critical">CRITICAL</span>
+        </div>
+        <div class="file-title">JWT signing secret exposed alongside database and mail credentials</div>
+        <p class="file-desc">A Government of India research institute's API config leaked its token-signing secret — sufficient to forge valid authentication tokens without ever touching a password.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> Government / Research</span>
+          <span><b>Reported to:</b> CERT-In</span>
+          <span><b>Status:</b> Filed</span>
+        </div>
+      </div>
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-06-M</span>
+          <span class="sev high">HIGH</span>
+        </div>
+        <div class="file-title">SQL injection bypassing admin authentication on a healthcare portal</div>
+        <p class="file-desc">An unauthenticated injection point in an admin login flow allowed full panel access, exposing hospital and clinic records.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> Healthcare</span>
+          <span><b>Reported to:</b> Org direct + CERT-In</span>
+          <span><b>Status:</b> Filed</span>
+        </div>
+      </div>
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-07-N</span>
+          <span class="sev high">HIGH</span>
+        </div>
+        <div class="file-title">Exposed <span class="redacted">████</span> directory enabling full source reconstruction</div>
+        <p class="file-desc">A CRM vendor's development subdomain exposed version-control internals, making complete source and commit-history recovery possible for anyone who found the path.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> SaaS / Private</span>
+          <span><b>Reported to:</b> Vendor direct</span>
+          <span><b>Status:</b> Filed</span>
+        </div>
+      </div>
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-07-E</span>
+          <span class="sev medium">MEDIUM</span>
+        </div>
+        <div class="file-title">Publicly indexed infostealer logs exposing government portal credentials</div>
+        <p class="file-desc">OSINT monitoring surfaced valid login credentials for multiple .gov.in portals inside stealer-log datasets, likely harvested from compromised end-user devices rather than the portals themselves.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> Government</span>
+          <span><b>Reported to:</b> CERT-In</span>
+          <span><b>Status:</b> Filed</span>
+        </div>
+      </div>
+
+      <div class="file">
+        <div class="file-top">
+          <span>CASE // 2026-06-A</span>
+          <span class="sev medium">MEDIUM</span>
+        </div>
+        <div class="file-title">Debug logs exposing internal server paths and framework internals</div>
+        <p class="file-desc">Production-mode debug logging left publicly readable, revealing directory structure, middleware logic, and — in one instance — a stored admin credential hash.</p>
+        <div class="file-foot">
+          <span><b>Sector:</b> Education / Research</span>
+          <span><b>Reported to:</b> CERT-In / Direct</span>
+          <span><b>Status:</b> Filed</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="section" id="method">
+    <div class="section-head">
+      <span class="tag">TRADECRAFT</span>
+      <h2>How I Find What I Find</h2>
+    </div>
+    <p class="section-sub">
+      Not exploits, not zero-days — just knowing where to look, and enough scripting discipline to look at scale
+      instead of one URL at a time.
+    </p>
+    <div class="skill-grid">
+      <div class="skill-card">
+        <h3>Search-Engine Dorking</h3>
+        <p>Advanced Google/Shodan/Censys dork strings to surface exposed config files, panels, and directories across large index sets — the same footprint an attacker would map first.</p>
+      </div>
+      <div class="skill-card">
+        <h3>Cyber Threat Intelligence</h3>
+        <p>Monitoring leak forums and stealer-log marketplaces for credentials tied to Indian domains, correlating exposure back to a real, ownable incident rather than raw noise.</p>
+      </div>
+      <div class="skill-card">
+        <h3>Bash &amp; Recon Scripting</h3>
+        <p>Lightweight shell tooling to batch-verify dork hits, de-duplicate false positives, and triage severity before a single report gets written.</p>
+      </div>
+      <div class="skill-card">
+        <h3>Coordinated Disclosure</h3>
+        <p>CERT-In / CERT-Bund filing, direct-to-organization outreach, registry-verified attribution, and redaction-first evidence handling on every report.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="verify">
+    <div class="section-head">
+      <span class="tag">VERIFY</span>
+      <h2>This Isn't Just a Claim</h2>
+    </div>
+    <p class="section-sub">
+      Reference numbers and organization names stay off this page by design — publishing them would itself be a
+      disclosure risk. What's shown below is the real acknowledgment format CERT-In sends back, with all
+      identifying fields removed.
+    </p>
+    <div class="proof-card">
+      <div class="proof-head">
+        <span class="proof-chip">CERT-In — Acknowledgment Format</span>
+        <span class="proof-chip alt">Reference redacted by design</span>
+      </div>
+      <div class="proof-body">
+        <p><span class="plabel">From:</span> incident<span class="redacted">████</span>@cert-in.org.in</p>
+        <p><span class="plabel">Subject:</span> RE: <span class="redacted">██████████████████████████</span></p>
+        <p><span class="plabel">Body:</span> "Thank you for reporting the incident to CERT-In. Your report has been logged under reference <span class="redacted">████████████</span> and forwarded for necessary action."</p>
+      </div>
+      <div class="proof-foot">Full acknowledgment threads available on request — for recruiters, CISOs, or verification purposes only.</div>
+    </div>
+  </section>
+
+  <section class="section" id="process">
+    <div class="section-head">
+      <span class="tag">PROTOCOL</span>
+      <h2>How a Finding Becomes a Report</h2>
+    </div>
+    <div class="timeline">
+      <div class="tl-item">
+        <h4>01 — CONFIRM</h4>
+        <p>Verify the exposure is real. Nothing further is downloaded, logged into, or extracted beyond what proves the issue.</p>
+      </div>
+      <div class="tl-item">
+        <h4>02 — REDACT</h4>
+        <p>Every credential, key, and identifier is fully masked before it leaves my machine — partial redaction isn't redaction.</p>
+      </div>
+      <div class="tl-item">
+        <h4>03 — IDENTIFY</h4>
+        <p>The affected organization is confirmed through public registry data, not guessed, before a report is filed.</p>
+      </div>
+      <div class="tl-item">
+        <h4>04 — REPORT</h4>
+        <p>Filed to CERT-In and, where practical, directly to the affected organization in parallel.</p>
+      </div>
+      <div class="tl-item">
+        <h4>05 — WAIT</h4>
+        <p>A reasonable remediation window is given before any public reference to the finding — sector and category only, never identifying detail.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-grid">
+      <h2>Reports that make systems safer, not headlines.</h2>
+      <div class="links">
+        <a href="https://github.com/shubhamgitstar" target="_blank" rel="noopener">GitHub ↗</a>
+        <a href="#" target="_blank" rel="noopener">LinkedIn ↗</a>
+        <a href="mailto:shubhamtripathi3@kpmg.com">Contact ↗</a>
+      </div>
+    </div>
+    <div class="fine">
+      Details on this page are generalized and anonymized in line with responsible disclosure practice.
+      No organization names, credentials, or exploit details are published here or elsewhere.
+    </div>
+  </footer>
 </div>
 
-<div class="grain"></div>
-<div class="vignette"></div>
-<div class="cursor" id="cursor"></div>
-
-<header class="chrome">
-  <div class="chrome__mark">
-    <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="50" cy="50" r="6" fill="currentColor"/></svg>
-    <span>S. TRIPATHI</span>
-  </div>
-  <nav class="chrome__nav">
-    <a href="#watch">WATCH</a>
-    <a href="#methods">METHOD</a>
-    <a href="#cases">LOG</a>
-    <a href="#end">CONTACT</a>
-  </nav>
-</header>
-
-<div class="rail rail--left"><span>OSINT · CTI · COORDINATED DISCLOSURE</span></div>
-<div class="rail rail--right"><span id="railScroll">SCROLL 000%</span></div>
-
-<main>
-
-<section class="scrub" id="scrub">
-  <div class="scrub__sticky">
-    <canvas id="radarCanvas"></canvas>
-
-    <div class="titleblock" id="titleblock">
-      <p class="titleblock__kicker">NCR, INDIA · SOC OPERATIONS</p>
-      <h1 class="titleblock__name">SHUBHAM<br>TRIPATHI</h1>
-      <p class="titleblock__role">THREAT HUNTER / OSINT RESEARCHER / DISCLOSURE PRACTITIONER</p>
-    </div>
-
-    <div class="phase" data-phase="0">
-      <p class="phase__eyebrow">PHASE 01</p>
-      <h2 class="phase__title">SIGNAL</h2>
-      <p class="phase__sub">Every exposure starts as noise in a much larger index — most people scroll past it.</p>
-    </div>
-    <div class="phase" data-phase="1">
-      <p class="phase__eyebrow">PHASE 02</p>
-      <h2 class="phase__title">CONFIRM</h2>
-      <p class="phase__sub">Verify it's real. Touch nothing beyond what proves the exposure exists.</p>
-    </div>
-    <div class="phase" data-phase="2">
-      <p class="phase__eyebrow">PHASE 03</p>
-      <h2 class="phase__title">REDACT</h2>
-      <p class="phase__sub">Every credential, key, and identifier masked before it leaves the machine.</p>
-    </div>
-    <div class="phase" data-phase="3">
-      <p class="phase__eyebrow">PHASE 04</p>
-      <h2 class="phase__title">REPORT</h2>
-      <p class="phase__sub">Filed to the people who can fix it — quietly, and without needing credit to matter.</p>
-    </div>
-
-    <div class="hint" id="hint"><span>SCROLL</span><span class="hint__line"></span></div>
-  </div>
-</section>
-
-<section class="watcher" id="watch">
-  <div class="watcher__sticky">
-    <canvas id="eyeCanvas" width="560" height="560"></canvas>
-    <div class="watcher__frame">
-      <div class="watcher__label watcher__label--tl">SCAN ACTIVE</div>
-      <div class="watcher__label watcher__label--tr" id="eyeReadout">TRACK 00.0</div>
-      <div class="watcher__label watcher__label--bl">MANUAL OVERRIDE</div>
-      <div class="watcher__label watcher__label--br">MOVE CURSOR TO AIM</div>
-    </div>
-    <div class="watcher__copy">
-      <h2>Watching is <span>the job.</span></h2>
-      <p>Most breaches aren't sophisticated. They're sitting in a public index, waiting for someone to look — and someone always eventually does. The work is making sure it's someone who reports it, not someone who exploits it.</p>
-    </div>
-  </div>
-</section>
-
-<section class="methods" id="methods">
-  <div class="methods__reveal" id="methodsReveal"></div>
-  <div class="methods__inner">
-    <p class="methods__eyebrow">TRADECRAFT</p>
-    <h2 class="methods__head">How a finding becomes a report, not a headline.</h2>
-    <div class="methods__list">
-      <div class="method">
-        <span class="method__num">01</span>
-        <div><div class="method__title">Search-engine dorking</div><p class="method__desc">Advanced Google/Shodan/Censys dork strings surface exposed panels, configs, and directories at scale — the same footprint an attacker would map first.</p></div>
-      </div>
-      <div class="method">
-        <span class="method__num">02</span>
-        <div><div class="method__title">Cyber threat intelligence</div><p class="method__desc">Monitoring leak forums and stealer-log marketplaces for credentials tied to Indian domains, correlating raw noise back to a real, actionable incident.</p></div>
-      </div>
-      <div class="method">
-        <span class="method__num">03</span>
-        <div><div class="method__title">Bash &amp; recon scripting</div><p class="method__desc">Lightweight shell tooling to batch-verify hits, de-duplicate false positives, and triage severity before a single report gets written.</p></div>
-      </div>
-      <div class="method">
-        <span class="method__num">04</span>
-        <div><div class="method__title">Coordinated disclosure</div><p class="method__desc">CERT-In / CERT-Bund filing, direct-to-organization outreach, registry-verified attribution, redaction-first evidence handling on every report.</p></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="cases" id="cases">
-  <p class="cases__eyebrow">CASE LOG</p>
-  <h2 class="cases__head">Selected findings. Organization names withheld by design — even after remediation.</h2>
-
-  <div class="case">
-    <div class="case__top"><span>CASE // 2026-07-B</span><span class="case__sev critical">CRITICAL</span></div>
-    <div class="case__title">Live production database credentials in a public <span class="redact">██████████</span> file</div>
-    <p class="case__desc">A regulated banking institution's server exposed plaintext database credentials at a predictable config path. Sector: Banking · Reported to CERT-In · Status: Resolved &amp; verified.</p>
-  </div>
-  <div class="case">
-    <div class="case__top"><span>CASE // 2026-07-G</span><span class="case__sev critical">CRITICAL</span></div>
-    <div class="case__title">JWT signing secret exposed alongside database and mail credentials</div>
-    <p class="case__desc">A Government of India research institute's API config leaked its token-signing secret, sufficient to forge valid authentication tokens. Sector: Government · Reported to CERT-In · Status: Filed.</p>
-  </div>
-  <div class="case">
-    <div class="case__top"><span>CASE // 2026-06-M</span><span class="case__sev high">HIGH</span></div>
-    <div class="case__title">SQL injection bypassing admin authentication on a healthcare portal</div>
-    <p class="case__desc">An unauthenticated injection point in an admin login flow allowed full panel access. Sector: Healthcare · Reported to Org + CERT-In · Status: Filed.</p>
-  </div>
-  <div class="case">
-    <div class="case__top"><span>CASE // 2026-07-N</span><span class="case__sev high">HIGH</span></div>
-    <div class="case__title">Exposed <span class="redact">████</span> directory enabling full source reconstruction</div>
-    <p class="case__desc">A CRM vendor's development subdomain exposed version-control internals. Sector: SaaS · Reported to Vendor · Status: Filed.</p>
-  </div>
-  <div class="case">
-    <div class="case__top"><span>CASE // 2026-07-E</span><span class="case__sev medium">MEDIUM</span></div>
-    <div class="case__title">Publicly indexed infostealer logs exposing government portal credentials</div>
-    <p class="case__desc">OSINT monitoring surfaced valid credentials for multiple .gov.in portals inside stealer-log datasets. Sector: Government · Reported to CERT-In · Status: Filed.</p>
-  </div>
-</section>
-
-<footer id="end">
-  <h2>Reports that make systems safer, not headlines.</h2>
-  <div class="footer__links">
-    <a href="https://github.com/shubhamgitstar" target="_blank" rel="noopener">GITHUB ↗</a>
-    <a href="#" target="_blank" rel="noopener">LINKEDIN ↗</a>
-    <a href="mailto:shubhtripathi13082001@gmail.com">CONTACT ↗</a>
-  </div>
-  <p class="footer__fine">Details on this page are generalized and anonymized in line with responsible disclosure practice. No organization names, credentials, or exploit details are published here or elsewhere.</p>
-</footer>
-
-</main>
-
 <script>
-/* ---------- Preloader ---------- */
-const loader = document.getElementById('loader');
-const loaderFill = document.getElementById('loaderFill');
-const loaderPct = document.getElementById('loaderPct');
-let pct = 0;
-const loadTimer = setInterval(()=>{
-  pct += Math.random()*18;
-  if(pct >= 100){ pct = 100; clearInterval(loadTimer); setTimeout(()=>loader.classList.add('done'), 300); }
-  loaderFill.style.width = pct+'%';
-  loaderPct.textContent = Math.floor(pct)+'%';
-}, 140);
-
-/* ---------- Custom cursor ---------- */
-const cursor = document.getElementById('cursor');
-window.addEventListener('mousemove', e=>{
-  cursor.style.left = e.clientX+'px';
-  cursor.style.top = e.clientY+'px';
-});
-
-/* ---------- Scroll progress rail ---------- */
-const railScroll = document.getElementById('railScroll');
-window.addEventListener('scroll', ()=>{
-  const p = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
-  railScroll.textContent = 'SCROLL '+String(Math.floor(p)).padStart(3,'0')+'%';
-});
-
-/* ---------- Hero scroll-scrub: radar sweep + phases ---------- */
-const scrub = document.getElementById('scrub');
-const canvas = document.getElementById('radarCanvas');
-const ctx = canvas.getContext('2d');
-const titleblock = document.getElementById('titleblock');
-const hint = document.getElementById('hint');
-const phases = document.querySelectorAll('.phase');
-let W,H,DPR;
-function resize(){
-  DPR = Math.min(window.devicePixelRatio||1, 2);
-  W = canvas.clientWidth = window.innerWidth;
-  H = canvas.clientHeight = window.innerHeight;
-  canvas.width = W*DPR; canvas.height = H*DPR;
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-}
-window.addEventListener('resize', resize); resize();
-let sweepAngle = 0;
-function drawRadar(progress){
-  ctx.clearRect(0,0,W,H);
-  const cx = W/2, cy = H/2;
-  const maxR = Math.max(W,H)*0.55;
-  // rings
-  ctx.strokeStyle = 'rgba(110,123,255,0.12)';
-  ctx.lineWidth = 1;
-  for(let i=1;i<=4;i++){
-    ctx.beginPath();
-    ctx.arc(cx,cy, maxR*(i/4)*(0.3+progress*0.7), 0, Math.PI*2);
-    ctx.stroke();
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduceMotion && 'IntersectionObserver' in window) {
+    const revealables = document.querySelectorAll('.file, .skill-card, .proof-card, .tl-item, .stat');
+    revealables.forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(14px)';
+      el.style.transition = 'opacity .5s ease, transform .5s ease';
+    });
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    revealables.forEach(el => io.observe(el));
   }
-  // sweep
-  sweepAngle += 0.012 + progress*0.01;
-  const grad = ctx.createConicGradient ? ctx.createConicGradient(sweepAngle, cx, cy) : null;
-  ctx.save();
-  ctx.translate(cx,cy);
-  ctx.rotate(sweepAngle);
-  const sweepR = maxR*(0.3+progress*0.7);
-  const g = ctx.createLinearGradient(0,0,sweepR,0);
-  g.addColorStop(0,'rgba(110,123,255,0.35)');
-  g.addColorStop(1,'rgba(110,123,255,0)');
-  ctx.beginPath();
-  ctx.moveTo(0,0);
-  ctx.arc(0,0,sweepR, -0.35, 0.02);
-  ctx.closePath();
-  ctx.fillStyle = g;
-  ctx.fill();
-  ctx.restore();
-  // breach flash on phase 2/3
-  if(progress > 0.55){
-    const flashA = Math.min((progress-0.55)*1.5, 0.18) * (0.6+0.4*Math.sin(Date.now()/220));
-    ctx.fillStyle = rgba(255,138,61,${flashA});
-    ctx.beginPath(); ctx.arc(cx,cy, sweepR*0.4, 0, Math.PI*2); ctx.fill();
-  }
-}
-
-function onScrub(){
-  const rect = scrub.getBoundingClientRect();
-  const total = rect.height - window.innerHeight;
-  let progress = Math.min(Math.max(-rect.top / total, 0), 1);
-  drawRadar(progress);
-
-  // title fades out in first 15%
-  const titleOp = Math.max(1 - progress/0.12, 0);
-  titleblock.style.opacity = titleOp;
-  titleblock.style.transform = translateY(${-progress*40}px);
-  hint.style.opacity = Math.max(1-progress*6,0);
-
-  // phase captions across remaining scroll, 4 phases
-  const segs = 4;
-  const local = Math.max(progress-0.14,0)/0.86;
-  const idx = Math.min(Math.floor(local*segs), segs-1);
-  phases.forEach((p,i)=>{
-    p.classList.toggle('active', i===idx && progress>0.14);
-  });
-}
-window.addEventListener('scroll', onScrub);
-function raf(){ if(!loader.classList.contains('done')){} drawRadar(lastProgressCache||0); requestAnimationFrame(raf);}  
-let lastProgressCache = 0;
-function loop(){
-  const rect = scrub.getBoundingClientRect();
-  const total = rect.height - window.innerHeight;
-  lastProgressCache = Math.min(Math.max(-rect.top / total, 0), 1);
-  drawRadar(lastProgressCache);
-  requestAnimationFrame(loop);
-}
-loop();
-
-/* ---------- Watcher: mouse-tracked scanning reticle ---------- */
-const eyeCanvas = document.getElementById('eyeCanvas');
-const eyeCtx = eyeCanvas.getContext('2d');
-const eyeReadout = document.getElementById('eyeReadout');
-let targetX=0, targetY=0, curX=0, curY=0;
-function resizeEye(){
-  const size = eyeCanvas.clientWidth;
-  eyeCanvas.width = size*(window.devicePixelRatio||1);
-  eyeCanvas.height = size*(window.devicePixelRatio||1);
-  eyeCtx.setTransform(window.devicePixelRatio||1,0,0,window.devicePixelRatio||1,0,0);
-}
-window.addEventListener('resize', resizeEye);
-window.addEventListener('load', resizeEye);
-setTimeout(resizeEye, 300);
-
-window.addEventListener('mousemove', e=>{
-  const rect = eyeCanvas.getBoundingClientRect();
-  const cx = rect.left+rect.width/2, cy = rect.top+rect.height/2;
-  const dx = e.clientX-cx, dy = e.clientY-cy;
-  const dist = Math.min(Math.hypot(dx,dy), rect.width*0.32);
-  const ang = Math.atan2(dy,dx);
-  targetX = Math.cos(ang)*dist;
-  targetY = Math.sin(ang)*dist;
-  eyeReadout.textContent = 'TRACK '+(dist/(rect.width*0.32)*90).toFixed(1);
-});
-
-function drawEye(){
-  const size = eyeCanvas.clientWidth || 560;
-  eyeCtx.clearRect(0,0,size,size);
-  const cx=size/2, cy=size/2, R=size*0.42;
-  curX += (targetX-curX)*0.08;
-  curY += (targetY-curY)*0.08;
-
-  eyeCtx.strokeStyle='rgba(110,123,255,0.5)';
-  eyeCtx.lineWidth=1.5;
-  eyeCtx.beginPath(); eyeCtx.arc(cx,cy,R,0,Math.PI*2); eyeCtx.stroke();
-  eyeCtx.beginPath(); eyeCtx.arc(cx,cy,R*0.7,0,Math.PI*2); eyeCtx.strokeStyle='rgba(110,123,255,0.2)'; eyeCtx.stroke();
-
-  // crosshair ticks
-  eyeCtx.strokeStyle='rgba(237,234,224,0.25)';
-  for(let a=0;a<360;a+=15){
-    const rad=a*Math.PI/180;
-    const inner = a%90===0? R*0.86 : R*0.92;
-    eyeCtx.beginPath();
-    eyeCtx.moveTo(cx+Math.cos(rad)*inner, cy+Math.sin(rad)*inner);
-    eyeCtx.lineTo(cx+Math.cos(rad)*R, cy+Math.sin(rad)*R);
-    eyeCtx.stroke();
-  }
-
-  // reticle (target)
-  const tx = cx+curX*0.7, ty = cy+curY*0.7;
-  eyeCtx.strokeStyle='#FF8A3D';
-  eyeCtx.lineWidth=1.5;
-  eyeCtx.beginPath(); eyeCtx.arc(tx,ty,18,0,Math.PI*2); eyeCtx.stroke();
-  eyeCtx.beginPath(); eyeCtx.moveTo(tx-26,ty); eyeCtx.lineTo(tx-10,ty); eyeCtx.moveTo(tx+10,ty); eyeCtx.lineTo(tx+26,ty);
-  eyeCtx.moveTo(tx,ty-26); eyeCtx.lineTo(tx,ty-10); eyeCtx.moveTo(tx,ty+10); eyeCtx.lineTo(tx,ty+26);
-  eyeCtx.stroke();
-
-  // core dot
-  eyeCtx.fillStyle='#6E7BFF';
-  eyeCtx.beginPath(); eyeCtx.arc(cx,cy,4,0,Math.PI*2); eyeCtx.fill();
-
-  requestAnimationFrame(drawEye);
-}
-drawEye();
-
-/* ---------- Methods section reveal glow following cursor ---------- */
-const methodsSection = document.getElementById('methods');
-const methodsReveal = document.getElementById('methodsReveal');
-methodsSection.addEventListener('mousemove', e=>{
-  const rect = methodsSection.getBoundingClientRect();
-  methodsReveal.style.left = (e.clientX-rect.left)+'px';
-  methodsReveal.style.top = (e.clientY-rect.top)+'px';
-  methodsReveal.style.opacity = '1';
-});
-methodsSection.addEventListener('mouseleave', ()=>{ methodsReveal.style.opacity='0'; });
-
-/* ---------- Reduced motion ---------- */
-if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-  document.querySelectorAll('*').forEach(el=>el.style.animation='none');
-}
 </script>
+
 </body>
 </html>
